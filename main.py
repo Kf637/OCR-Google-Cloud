@@ -30,9 +30,9 @@ filetypes = (
 )
 
 # Check if Google credentials exists
-if not os.path.exists('credentials.json'):
+if not os.path.exists('øcredentials.json'):
     print('credentials.json not found')
-    messagebox.showerror(title="Error", message="Could not find credentials.json\nMake sure the file is in the same place as the script.\nStopping script.")
+    messagebox.showerror(title="Error", message="Could not find credentials.json\nMake sure the file is in the same place as the script.\nMake sure the file is named credentials.json\n\nStopping script.")
     quit()
 
 
@@ -68,8 +68,6 @@ class OCRApp:
         self.text_box = tk.Text(master, wrap='word')
         self.text_box.pack(fill='both', expand=True)
 
-   
-     
     # Load image from file
     def load_image(self):
         try:

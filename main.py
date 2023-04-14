@@ -30,7 +30,7 @@ filetypes = (
 )
 
 # Check if Google credentials exists
-if not os.path.exists('øcredentials.json'):
+if not os.path.exists('credentials.json'):
     print('credentials.json not found')
     messagebox.showerror(title="Error", message="Could not find credentials.json\nMake sure the file is in the same place as the script.\nMake sure the file is named credentials.json\n\nStopping script.")
     quit()

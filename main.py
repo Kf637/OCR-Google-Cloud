@@ -4,7 +4,7 @@ import tempfile
 
 from google.cloud import vision
 from google.oauth2 import service_account
-
+import google.api_core.exceptions
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import *
@@ -24,6 +24,11 @@ folder_path = os.path.join(temp_dir, "OCR")
 # Print the path of the temporary directory
 print('Temporary directory created with location ',temp_dir)
 
+# Define the file types you want to allow
+filetypes = (
+    ("JPEG Files", "*.jpg"),
+    ("PNG Files", "*.png")
+)
 
 # Define UI
 class OCRApp:
@@ -63,38 +68,46 @@ class OCRApp:
     def load_image(self):
         
         # Get image file path from user
-        file_path = filedialog.askopenfilename()
+        #file_path = filedialog.askopenfilename()
+  
+        # Show file explorer and allow selection of image files only
+        file_path = filedialog.askopenfilename(initialdir='/', title='Select Image File', filetypes=filetypes)
 
-        # Load image file and preview
-        image = Image.open(file_path)
-        image = image.resize((500, 500))
-        photo = ImageTk.PhotoImage(image)
-        self.image_label.config(image=photo)
-        self.image_label.image = photo
+
+        # Check if a file was selected before attempting to open it
+        if file_path:
+            with open(file_path, 'rb') as f:
+                image = Image.open(f)
+            image = image.resize((500, 500))
+            photo = ImageTk.PhotoImage(image)
+            self.image_label.config(image=photo)
+            self.image_label.image = photo
 
         # Process image with Google Cloud Vision OCR
-        with io.open(file_path, 'rb') as image_file:
-            content = image_file.read()
-        image = vision.Image(content=content)
-        response = self.client.document_text_detection(image=image)
-        text = response.full_text_annotation.text
+
+            with open(file_path, 'rb') as image_file:
+                content = image_file.read()
+            image = vision.Image(content=content)
+            response = self.client.document_text_detection(image=image)
+            text = response.full_text_annotation.text
 
 
         # Print OCR API response payload to console
-        if API_Respond_Print == True:
-                print(response)
+            if API_Respond_Print == True:
+                    print(response)
 
-        text = response.full_text_annotation.text
+            text = response.full_text_annotation.text
+        
 
 
         # Display OCR text
-        if text:
-            self.text_box.delete('1.0', 'end')
-            self.text_box.insert('1.0', text)
-        else:
-            self.text_box.delete('1.0', 'end')
-            self.text_box.tag_configure('red', foreground='red')
-            self.text_box.insert('1.0', 'No text could be found.', 'red')
+            if text:
+                self.text_box.delete('1.0', 'end')
+                self.text_box.insert('1.0', text)
+            else:
+                self.text_box.delete('1.0', 'end')
+                self.text_box.tag_configure('red', foreground='red')
+                self.text_box.insert('1.0', 'No text could be found.', 'red')
 
     # Paste image from clipboard
     def paste_image(self):
@@ -115,11 +128,20 @@ class OCRApp:
             self.image_label.image = photo
 
             # Save image to temporary file
-            temp_file = tempfile.NamedTemporaryFile(suffix='.png', dir=temp_dir, delete=False)
-            file_path = os.path.join(temp_dir, temp_file.name.split('\\')[-1])
-            image.save(file_path, 'PNG')
-            temp_file.close()
-            print(file_path)
+            try:
+                print('Saving file to temporary directory')
+                temp_file = tempfile.NamedTemporaryFile(suffix='.png', dir=temp_dir, delete=False)
+                file_path = os.path.join(temp_dir, temp_file.name.split('\\')[-1])
+                image.save(file_path, 'PNG')
+                temp_file.close()
+                print('Image has been saved to temporary directory')
+                print(file_path)
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                self.paste_button.configure(text="An error occurred, please restart script..", foreground='red')
+                self.text_box.delete('1.0', 'end')
+                self.text_box.insert('1.0', f"An error occurred: {e}", 'red')
+
 
             # Process image with Google Cloud Vision OCR
             

@@ -9,7 +9,18 @@ from tkinter import filedialog, messagebox
 from tkinter import *
 from PIL import Image, ImageTk, ImageGrab
 
+
 API_Respond_Print = False
+
+# Check if Google credentials exists
+if not os.path.exists('credentials.json'):
+    print('credentials.json not found')
+    response = messagebox.showerror(title="Error", message="Could not find credentials.json\nMake sure the file is in the same place as the script.\nMake sure the file is named credentials.json\n\nDo you want to continue?", type='yesno')
+    if response == 'no':
+        quit('Stopping')
+    else:
+        print('Starting...')
+
 
 ###### SETUP FOR TEMP FOLDER ######
 
@@ -20,6 +31,14 @@ temp_dir = tempfile.mkdtemp(prefix='temp_OCR_')
 # Add an "OCR" folder to the temporary directory
 folder_path = os.path.join(temp_dir, "OCR")
 
+# Check if temporary folder was created
+if not os.path.exists(temp_dir):
+    response = messagebox.showerror(title="Error", message="Temporary folder was not found.\nExpected Location: " + temp_dir + "\n\nDo you want to continue?", type='yesno')
+    if response == 'no':
+        quit('Stopping')
+    else:
+        print('Starting...')
+
 # Print the path of the temporary directory
 print('Temporary directory created with location ',temp_dir)
 
@@ -28,12 +47,6 @@ filetypes = (
     ("JPEG Files", "*.jpg"),
     ("PNG Files", "*.png")
 )
-
-# Check if Google credentials exists
-if not os.path.exists('credentials.json'):
-    print('credentials.json not found')
-    messagebox.showerror(title="Error", message="Could not find credentials.json\nMake sure the file is in the same place as the script.\nMake sure the file is named credentials.json\n\nStopping script.")
-    quit()
 
 
 # Define UI

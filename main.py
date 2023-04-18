@@ -1,6 +1,7 @@
 import io
 import os
 import tempfile
+import socket
 from google.cloud import vision
 from google.oauth2 import service_account
 import google.api_core.exceptions
@@ -9,8 +10,24 @@ from tkinter import filedialog, messagebox
 from tkinter import *
 from PIL import Image, ImageTk, ImageGrab
 
-
 API_Respond_Print = False
+
+# Try to resolve the Google DNS server to check for internet connectivity
+try:
+    print('Checking Google DNS..')
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(5)  # Set a timeout for the socket connection
+    s.connect(('8.8.8.8', 53))
+    s.close()
+    print('Connectivity test passed\n\n')
+except socket.error:
+    # If there's an error, assume there's no internet connectivity
+    print("Could not contact Google DNS server")
+    response = messagebox.showerror(title="Error", message="Could not contact Google DNS server, please check your connection\n\nDo you want to continue?", type='yesno')
+    if response == 'no':
+        quit('Stopping')
+    else:
+        print('Starting...')
 
 # Check if Google credentials exists
 if not os.path.exists('credentials.json'):
@@ -31,21 +48,17 @@ temp_dir = tempfile.mkdtemp(prefix='temp_OCR_')
 # Add an "OCR" folder to the temporary directory
 folder_path = os.path.join(temp_dir, "OCR")
 
-# Check if temporary folder was created
-if not os.path.exists(temp_dir):
-    response = messagebox.showerror(title="Error", message="Temporary folder was not found.\nExpected Location: " + temp_dir + "\n\nDo you want to continue?", type='yesno')
-    if response == 'no':
-        quit('Stopping')
-    else:
-        print('Starting...')
-
 # Print the path of the temporary directory
 print('Temporary directory created with location ',temp_dir)
 
 # Define the file types you want to allow
 filetypes = (
     ("JPEG Files", "*.jpg"),
-    ("PNG Files", "*.png")
+    ("PNG Files", "*.png"),
+    #("GIF Files", "*.gif"),
+    ("BMP Files", "*.bmp"),
+    ("TIFF Files", "*.tiff"),
+    ("WEBP Files", "*.webp")
 )
 
 
@@ -94,7 +107,7 @@ class OCRApp:
                 photo = ImageTk.PhotoImage(image)
                 self.image_label.config(image=photo)
                 self.image_label.image = photo
-
+    
                 # Process image with Google Cloud Vision OCR
                 with open(file_path, 'rb') as image_file:
                     content = image_file.read()
@@ -121,7 +134,7 @@ class OCRApp:
                 self.paste_button.configure(text="An error occurred, please restart script..", foreground='red')
                 self.text_box.delete('1.0', 'end')
                 self.text_box.insert('1.0', f"An error occurred: {e}", 'red')
-
+        
     # Paste image from clipboard
     def paste_image(self):
         if not self.is_clipboard_image():
@@ -143,7 +156,7 @@ class OCRApp:
             try:
                 print('Saving file to temporary directory')
                 temp_file = tempfile.NamedTemporaryFile(suffix='.png', dir=temp_dir, delete=False)
-                file_path = os.path.join(temp_dir, temp_file.name.split('\\')[-1])
+                file_path = os.path.join(temp_dir, temp_file.name.split(os.path.sep)[-1])
                 image.save(file_path, 'PNG')
                 temp_file.close()
                 print('Image has been saved to temporary directory')
@@ -154,36 +167,39 @@ class OCRApp:
                 self.text_box.insert('1.0', f"An error occurred: {e}", 'red')
 
             # Process image with Google Cloud Vision OCR
-            with io.open(file_path, 'rb') as image_file:
-                content = image_file.read()
-            image = vision.Image(content=content)
-            response = self.client.document_text_detection(image=image)
-            text = response.full_text_annotation.text
-            self.paste_button.configure(text="Paste Image", foreground='black')
-
-            # Print OCR API response payload to console
-            if API_Respond_Print == True:
-                print(response)
-
-            # Delete image temporary file
             try:
-                os.remove(file_path)
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                
-            text = response.full_text_annotation.text
+                # Process image with Google Cloud Vision OCR
+                with open(file_path, 'rb') as image_file:
+                    content = image_file.read()
+                image = vision.Image(content=content)
+                response = self.client.document_text_detection(image=image)
+                text = response.full_text_annotation.text
 
-            # Display OCR text
-            if text:
+                # Print OCR API response payload to console
+                if API_Respond_Print:
+                    print(response)
+
+                text = response.full_text_annotation.text
+                self.paste_button.configure(text="Paste Image", foreground='black')
+                # Display OCR text
+                if text:
+                    self.text_box.delete('1.0', 'end')
+                    self.text_box.insert('1.0', text)
+                else:
+                    self.text_box.delete('1.0', 'end')
+                    self.text_box.tag_configure('red', foreground='red')
+                    self.text_box.insert('1.0', 'No text could be found.', 'red')
+
+            except google.api_core.exceptions.ServiceUnavailable as e:
+                print(f"Google Cloud Vision API is currently unavailable: {e}")
                 self.text_box.delete('1.0', 'end')
-                self.text_box.insert('1.0', text)
-            else:
+                self.text_box.insert('1.0', 'Google Cloud Vision API is currently unavailable.', 'red')
+            except google.api_core.exceptions.GoogleAPIError as e:
+                print(f"An error occurred while calling the Google Cloud Vision API: {e}")
                 self.text_box.delete('1.0', 'end')
-                self.text_box.tag_configure('red', foreground='red')
-                self.text_box.insert('1.0', 'No text could be found.', 'red')
+                self.text_box.insert('1.0', 'An error occurred while calling the Google Cloud Vision API.', 'red')
 
 
-    
     def is_clipboard_image(self):
         try:
           clipboard = ImageGrab.grabclipboard()
@@ -203,7 +219,7 @@ class OCRApp:
           API_Respond_Print = True
           print('API_Respond_Print is now true')
           self.api_button.configure(text="Print API Respond On", foreground='green')
-          return
+        return
         
 # Initialize UI
 root = tk.Tk()
